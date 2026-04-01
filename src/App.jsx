@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient'
 import './index.css'
 
 function App() {
-  const [activeTab, setActiveTab] = useState('register') // 'register', 'booking', 'view'
+  const [activeTab, setActiveTab] = useState('register') // 'register', 'plan'
 
   // Tourist Form State
   const [touristForm, setTouristForm] = useState({
@@ -15,22 +15,32 @@ function App() {
   })
   const [touristMsg, setTouristMsg] = useState({ type: '', text: '' })
 
-  // Booking Form State
+  // Plan Your Travel Workflow State
+  const [travelStep, setTravelStep] = useState('districts') 
+  // steps: 'districts' | 'destinations' | 'hotels' | 'packages' | 'booking' | 'payment' | 'success'
+  
+  const [viewLoading, setViewLoading] = useState(false)
+  const [dataList, setDataList] = useState([])
+
+  // Selection states
+  const [selectedDistrict, setSelectedDistrict] = useState(null)
+  const [selectedDestination, setSelectedDestination] = useState(null)
+  const [selectedHotel, setSelectedHotel] = useState(null)
+  const [selectedPackage, setSelectedPackage] = useState(null)
+  const [currentBooking, setCurrentBooking] = useState(null)
+
+  // Booking Form State within Workflow
   const [bookingForm, setBookingForm] = useState({
     booking_id: '',
     tourist_id: '',
-    package_id: '',
-    booking_date: new Date().toISOString().split('T')[0], // current date as default
     travel_date: ''
   })
   const [bookingMsg, setBookingMsg] = useState({ type: '', text: '' })
+  // Payment Form State
+  const [paymentMsg, setPaymentMsg] = useState({ type: '', text: '' })
+  // Payment Amount is derived from selectedPackage.total_cost
 
-  // View Data State
-  const [dataList, setDataList] = useState([])
-  const [currentView, setCurrentView] = useState('') // 'tourist' or 'booking'
-  const [viewLoading, setViewLoading] = useState(false)
-
-  // -- Handlers for Tourist -- //
+  // -- Tourist Handlers -- //
   const handleTouristChange = (e) => {
     setTouristForm({ ...touristForm, [e.target.name]: e.target.value })
   }
@@ -38,70 +48,163 @@ function App() {
   const handleRegisterTourist = async (e) => {
     e.preventDefault()
     setTouristMsg({ type: '', text: '' })
-    
     try {
-      const { data, error } = await supabase
-        .from('tourist')
-        .insert([touristForm])
-      
+      const { data, error } = await supabase.from('tourist').insert([touristForm])
       if (error) throw error
-
       setTouristMsg({ type: 'success', text: 'Tourist Registered Successfully' })
       setTouristForm({ tourist_id: '', name: '', phone: '', email: '', nationality: '' })
-      console.log("Tourist Insert Response:", data)
     } catch (error) {
-      console.error("Error inserting tourist:", error)
       setTouristMsg({ type: 'error', text: error.message || 'Insertion failed' })
     }
   }
 
-  // -- Handlers for Booking -- //
-  const handleBookingChange = (e) => {
-    setBookingForm({ ...bookingForm, [e.target.name]: e.target.value })
+  // -- Wizard Handlers -- //
+  useEffect(() => {
+    if (activeTab === 'plan') {
+      if (travelStep === 'districts') fetchDistricts()
+      else if (travelStep === 'destinations' && selectedDistrict) fetchDestinations()
+      else if (travelStep === 'hotels' && selectedDestination) fetchHotels()
+      else if (travelStep === 'packages' && selectedDestination) fetchPackages()
+    }
+  }, [travelStep, activeTab])
+
+  const navigateToStep = (step) => {
+    setTravelStep(step)
+    if (step === 'districts') {
+      setSelectedDistrict(null); setSelectedDestination(null); setSelectedHotel(null); setSelectedPackage(null);
+    }
+    if (step === 'destinations') {
+      setSelectedDestination(null); setSelectedHotel(null); setSelectedPackage(null);
+    }
+    if (step === 'hotels') {
+      setSelectedHotel(null); setSelectedPackage(null);
+    }
+    if (step === 'packages') {
+      setSelectedPackage(null);
+    }
+  }
+
+  const handleGoBack = () => {
+    if (travelStep === 'destinations') navigateToStep('districts');
+    else if (travelStep === 'hotels') navigateToStep('destinations');
+    else if (travelStep === 'packages') navigateToStep('hotels');
+    else if (travelStep === 'booking') navigateToStep('packages');
+  }
+
+  const fetchDistricts = async () => {
+    setViewLoading(true); setDataList([]);
+    try {
+      const { data, error } = await supabase.from('district').select('*')
+      if (error) throw error
+      setDataList(data || [])
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setViewLoading(false)
+    }
+  }
+
+  const fetchDestinations = async () => {
+    setViewLoading(true); setDataList([]);
+    try {
+      const { data, error } = await supabase.from('destination').select('*').eq('district_code', selectedDistrict.district_code || selectedDistrict.id)
+      if (error) throw error
+      setDataList(data || [])
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setViewLoading(false)
+    }
+  }
+
+  const fetchHotels = async () => {
+    setViewLoading(true); setDataList([]);
+    try {
+      const destinationId = selectedDestination.destination_id || selectedDestination.id;
+      // Assume hotel table uses destination_id 
+      const { data, error } = await supabase.from('hotel').select('*').eq('destination_id', destinationId)
+      if (error) throw error
+      setDataList(data || [])
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setViewLoading(false)
+    }
+  }
+
+  const fetchPackages = async () => {
+    setViewLoading(true); setDataList([]);
+    try {
+      // User added hotel_id foreign key to package table
+      const hotelId = selectedHotel.hotel_id || selectedHotel.id;
+      const { data, error } = await supabase.from('package').select('*').eq('hotel_id', hotelId)
+      if (error) throw error
+      setDataList(data || [])
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setViewLoading(false)
+    }
   }
 
   const handleBookingSubmit = async (e) => {
     e.preventDefault()
     setBookingMsg({ type: '', text: '' })
-    
     try {
-      const { data, error } = await supabase
-        .from('booking')
-        .insert([bookingForm])
-      
-      // Note: Foreign key constraints on tourist_id and package_id will be handled by Supabase DB
-      // and thrown back as an error if they do not exist.
+      const packageId = selectedPackage.package_id || selectedPackage.id
+      const bookingPayload = {
+        booking_id: bookingForm.booking_id,
+        tourist_id: bookingForm.tourist_id,
+        package_id: packageId,
+        booking_date: new Date().toISOString().split('T')[0],
+        travel_date: bookingForm.travel_date
+      }
+
+      const { data, error } = await supabase.from('booking').insert([bookingPayload])
       if (error) throw error
 
-      setBookingMsg({ type: 'success', text: 'Booking Successful' })
-      setBookingForm({ ...bookingForm, booking_id: '', tourist_id: '', package_id: '', travel_date: '' })
-      console.log("Booking Insert Response:", data)
+      setCurrentBooking(bookingPayload)
+      setBookingMsg({ type: 'success', text: 'Booking Setup Successful! Proceeding to Payment...' })
+      
+      // Auto advance to payment after a short delay
+      setTimeout(() => setTravelStep('payment'), 1200)
+
     } catch (error) {
-      console.error("Error inserting booking:", error)
       setBookingMsg({ type: 'error', text: error.message || 'Booking failed' })
     }
   }
 
-  // -- Handlers for Viewing Data -- //
-  const fetchTableData = async (tableName) => {
-    setViewLoading(true)
-    setCurrentView(tableName)
-    setDataList([])
-    
+  const handlePaymentSubmit = async () => {
+    setPaymentMsg({ type: '', text: '' })
     try {
-      const { data, error } = await supabase
-        .from(tableName)
-        .select('*')
-        
-      if (error) throw error
+      // Generate exactly 5 characters string to avoid VARCHAR(5) DB error (e.g. 'P' + 4 random chars)
+      const randomPaymentId = 'P' + Math.random().toString(36).substring(2, 6).toUpperCase();
       
-      setDataList(data || [])
-      console.log(`Fetched ${tableName}:`, data)
+      const paymentPayload = {
+        payment_id: randomPaymentId,
+        booking_id: currentBooking?.booking_id,
+        payment_amount: selectedPackage?.total_cost || 0
+      }
+
+      const { data, error } = await supabase.from('payment').insert([paymentPayload])
+      if (error) {
+        // Fallback for strict typo match just in case
+        if (error.message && error.message.includes('payment_amount')) {
+           const { error: fallbackErr } = await supabase.from('payment').insert([{
+             payment_id: paymentPayload.payment_id,
+             booking_id: paymentPayload.booking_id,
+             payment_amout: paymentPayload.payment_amount
+           }])
+           if (fallbackErr) throw fallbackErr;
+        } else {
+           throw error
+        }
+      }
+
+      setTravelStep('success')
     } catch (error) {
-      console.error(`Error fetching ${tableName}:`, error)
-      alert(`Error fetching ${tableName}: ${error.message}`)
-    } finally {
-      setViewLoading(false)
+      console.error("Payment error full object:", error)
+      setPaymentMsg({ type: 'error', text: error?.message || JSON.stringify(error) || 'An unknown error occurred' })
     }
   }
 
@@ -120,33 +223,15 @@ function App() {
           Register Tourist
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'booking' ? 'active' : ''}`}
-          onClick={() => setActiveTab('booking')}
+          className={`tab-btn ${activeTab === 'plan' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('plan'); if(travelStep === 'success') navigateToStep('districts'); }}
         >
-          Booking
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'view' ? 'active' : ''}`}
-          onClick={() => setActiveTab('view')}
-        >
-          View Data
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'districts' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('districts'); fetchTableData('district'); }}
-        >
-          Districts
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'destinations' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('destinations'); fetchTableData('destination'); }}
-        >
-          Destinations
+          Plan Your Travel
         </button>
       </div>
 
       <main>
-        {/* TOURIST REGISTER TAB */}
+        {/* -- TOURIST REGISTER TAB -- */}
         {activeTab === 'register' && (
           <div className="card">
             <h2>Register Tourist</h2>
@@ -163,210 +248,114 @@ function App() {
             <form onSubmit={handleRegisterTourist}>
               <div className="form-group">
                 <label>Tourist ID</label>
-                <input 
-                  type="text" 
-                  name="tourist_id" 
-                  className="form-input" 
-                  value={touristForm.tourist_id}
-                  onChange={handleTouristChange}
-                  required 
-                />
+                <input type="text" name="tourist_id" className="form-input" value={touristForm.tourist_id} onChange={handleTouristChange} required />
               </div>
               <div className="form-group">
                 <label>Name</label>
-                <input 
-                  type="text" 
-                  name="name" 
-                  className="form-input" 
-                  value={touristForm.name}
-                  onChange={handleTouristChange}
-                  required 
-                />
+                <input type="text" name="name" className="form-input" value={touristForm.name} onChange={handleTouristChange} required />
               </div>
               <div className="form-group">
                 <label>Phone</label>
-                <input 
-                  type="text" 
-                  name="phone" 
-                  className="form-input" 
-                  value={touristForm.phone}
-                  onChange={handleTouristChange}
-                />
+                <input type="text" name="phone" className="form-input" value={touristForm.phone} onChange={handleTouristChange} />
               </div>
               <div className="form-group">
                 <label>Email</label>
-                <input 
-                  type="email" 
-                  name="email" 
-                  className="form-input" 
-                  value={touristForm.email}
-                  onChange={handleTouristChange}
-                />
+                <input type="email" name="email" className="form-input" value={touristForm.email} onChange={handleTouristChange} />
               </div>
               <div className="form-group">
                 <label>Nationality</label>
-                <input 
-                  type="text" 
-                  name="nationality" 
-                  className="form-input" 
-                  value={touristForm.nationality}
-                  onChange={handleTouristChange}
-                />
+                <input type="text" name="nationality" className="form-input" value={touristForm.nationality} onChange={handleTouristChange} />
               </div>
               <button type="submit" className="btn">Register Tourist</button>
             </form>
           </div>
         )}
 
-        {/* BOOKING TAB */}
-        {activeTab === 'booking' && (
+        {/* -- PLAN YOUR TRAVEL TAB -- */}
+        {activeTab === 'plan' && (
           <div className="card">
-            <h2>Process Booking</h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-              Insert a new record into the <code style={{color: 'var(--accent)'}}>booking</code> table.
-            </p>
-
-            {bookingMsg.text && (
-              <div className={`msg ${bookingMsg.type}`}>
-                {bookingMsg.text}
-              </div>
-            )}
-
-            <form onSubmit={handleBookingSubmit}>
-              <div className="form-group">
-                <label>Booking ID</label>
-                <input 
-                  type="text" 
-                  name="booking_id" 
-                  className="form-input" 
-                  value={bookingForm.booking_id}
-                  onChange={handleBookingChange}
-                  required 
-                />
-              </div>
-              <div className="form-group">
-                <label>Tourist ID</label>
-                <input 
-                  type="text" 
-                  name="tourist_id" 
-                  className="form-input" 
-                  value={bookingForm.tourist_id}
-                  onChange={handleBookingChange}
-                  required 
-                />
-              </div>
-              <div className="form-group">
-                <label>Package ID</label>
-                <input 
-                  type="text" 
-                  name="package_id" 
-                  className="form-input" 
-                  value={bookingForm.package_id}
-                  onChange={handleBookingChange}
-                  required 
-                />
-              </div>
-              <div className="form-group">
-                <label>Booking Date</label>
-                <input 
-                  type="date" 
-                  name="booking_date" 
-                  className="form-input" 
-                  value={bookingForm.booking_date}
-                  onChange={handleBookingChange}
-                  required 
-                />
-              </div>
-              <div className="form-group">
-                <label>Travel Date</label>
-                <input 
-                  type="date" 
-                  name="travel_date" 
-                  className="form-input" 
-                  value={bookingForm.travel_date}
-                  onChange={handleBookingChange}
-                  required 
-                />
-              </div>
-              <button type="submit" className="btn">Submit Booking</button>
-            </form>
-          </div>
-        )}
-
-        {/* VIEW DATA TAB */}
-        {activeTab === 'view' && (
-          <div className="card">
-            <h2>Database Records</h2>
-            <div className="data-section-controls">
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={() => fetchTableData('tourist')}
-              >
-                Fetch Tourists
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={() => fetchTableData('booking')}
-              >
-                Fetch Bookings
-              </button>
-            </div>
-
-            {viewLoading && <p>Loading data...</p>}
             
-            {!viewLoading && currentView && (
-              <div className="table-container">
-                <h3 style={{ marginBottom: '1rem', color: 'var(--accent)' }}>
-                  Table: {currentView}
-                </h3>
-                {dataList.length === 0 ? (
-                  <p style={{ color: 'var(--text-muted)' }}>No records found.</p>
-                ) : (
-                  <table>
-                    <thead>
-                      <tr>
-                        {Object.keys(dataList[0]).map((key) => (
-                          <th key={key}>{key}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dataList.map((row, index) => (
-                        <tr key={index}>
-                          {Object.values(row).map((val, i) => (
-                            <td key={i}>{val !== null ? val.toString() : ''}</td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {/* Breadcrumbs Navigation */}
+            {travelStep !== 'success' && (
+              <div className="breadcrumbs">
+                <button className="crumb-btn" onClick={() => navigateToStep('districts')}>Districts</button>
+                
+                {['destinations', 'hotels', 'packages', 'booking', 'payment'].includes(travelStep) && (
+                  <><span className="crumb-separator">/</span> <button className="crumb-btn" onClick={() => navigateToStep('destinations')}>Destinations</button></>
+                )}
+                
+                {['hotels', 'packages', 'booking', 'payment'].includes(travelStep) && (
+                  <><span className="crumb-separator">/</span> <button className="crumb-btn" onClick={() => navigateToStep('hotels')}>Hotels</button></>
+                )}
+                
+                {['packages', 'booking', 'payment'].includes(travelStep) && (
+                  <><span className="crumb-separator">/</span> <button className="crumb-btn" onClick={() => navigateToStep('packages')}>Packages</button></>
+                )}
+                
+                {['booking', 'payment'].includes(travelStep) && (
+                  <><span className="crumb-separator">/</span> <button className="crumb-btn" disabled>Booking</button></>
                 )}
               </div>
             )}
-          </div>
-        )}
 
-        {/* DISTRICTS / DESTINATIONS CARDS VIEW */}
-        {(activeTab === 'districts' || activeTab === 'destinations') && (
-          <div className="card">
-            <h2>{activeTab === 'districts' ? 'Districts' : 'Destinations'} Directory</h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-              Fetched from <code style={{color: 'var(--accent)'}}>{activeTab === 'districts' ? 'district' : 'destination'}</code> table.
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <h2 style={{textTransform: 'capitalize', margin: 0}}>{travelStep === 'success' ? 'Booking Complete' : travelStep}</h2>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {travelStep !== 'districts' && travelStep !== 'payment' && travelStep !== 'success' && (
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ width: 'auto', padding: '0.4rem 1rem', fontSize: '0.9rem' }}
+                    onClick={handleGoBack}
+                  >
+                    &larr; Go Back
+                  </button>
+                )}
+                {travelStep !== 'payment' && travelStep !== 'success' && (
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ width: 'auto', padding: '0.4rem 1rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+                    onClick={() => navigateToStep('districts')}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    Home
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {/* Drill Down Steps */}
+            {['districts', 'destinations', 'hotels', 'packages'].includes(travelStep) && (
+               <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                Select a card below to proceed.
+               </p>
+            )}
 
             {viewLoading && <p>Loading data...</p>}
             
-            {!viewLoading && (
+            {/* CARDS RENDER */}
+            {!viewLoading && ['districts', 'destinations', 'hotels', 'packages'].includes(travelStep) && (
               <div className="grid-cards">
                 {dataList.length === 0 ? (
-                  <p style={{ color: 'var(--text-muted)' }}>No records found.</p>
+                  <p style={{ color: 'var(--text-muted)' }}>No records found at this level.</p>
                 ) : (
                   dataList.map((item, idx) => (
-                    <div className="data-card" key={idx}>
+                    <div 
+                      key={idx} 
+                      className="data-card clickable"
+                      onClick={() => {
+                        if (travelStep === 'districts') {
+                          setSelectedDistrict(item); setTravelStep('destinations');
+                        } else if (travelStep === 'destinations') {
+                          setSelectedDestination(item); setTravelStep('hotels');
+                        } else if (travelStep === 'hotels') {
+                          setSelectedHotel(item); setTravelStep('packages');
+                        } else if (travelStep === 'packages') {
+                          setSelectedPackage(item); setTravelStep('booking');
+                        }
+                      }}
+                    >
                       <div className="data-card-title">
-                        {item.name || item.destination_name || item.district_name || item.title || `Record #${idx + 1}`}
+                        {item.name || item.destination_name || item.hotel_name || item.district_name || item.package_name || `Record #${idx + 1}`}
                       </div>
                       {Object.entries(item).map(([key, val]) => (
                         <div className="data-card-field" key={key}>
@@ -379,6 +368,66 @@ function App() {
                 )}
               </div>
             )}
+
+            {/* BOOKING STEP */}
+            {travelStep === 'booking' && (
+               <div>
+                  {bookingMsg.text && <div className={`msg ${bookingMsg.type}`}>{bookingMsg.text}</div>}
+                  <form onSubmit={handleBookingSubmit}>
+                    <div className="form-group">
+                      <label>Package Selected (ID)</label>
+                      <input type="text" className="form-input" disabled value={selectedPackage?.package_id || selectedPackage?.id || ''} />
+                    </div>
+                    <div className="form-group">
+                      <label>Booking ID (Manual Entry)</label>
+                      <input type="text" className="form-input" value={bookingForm.booking_id} onChange={(e)=>setBookingForm({...bookingForm, booking_id: e.target.value})} required/>
+                    </div>
+                    <div className="form-group">
+                      <label>Tourist ID</label>
+                      <input type="text" className="form-input" value={bookingForm.tourist_id} onChange={(e)=>setBookingForm({...bookingForm, tourist_id: e.target.value})} required/>
+                    </div>
+                    <div className="form-group">
+                      <label>Travel Date</label>
+                      <input type="date" className="form-input" value={bookingForm.travel_date} onChange={(e)=>setBookingForm({...bookingForm, travel_date: e.target.value})} required/>
+                    </div>
+                    <button type="submit" className="btn">Confirm Booking</button>
+                  </form>
+               </div>
+            )}
+
+            {/* PAYMENT STEP */}
+            {travelStep === 'payment' && (
+               <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                  <h3 style={{color: 'var(--accent)', marginBottom: '1rem'}}>Complete Your Payment</h3>
+                  {paymentMsg.text && (
+                    <div className={`msg ${paymentMsg.type}`}>{paymentMsg.text}</div>
+                  )}
+                  <p style={{marginBottom: '2rem', color: 'var(--text-muted)'}}>
+                    Booking Ref: {currentBooking?.booking_id}<br/>
+                    Amount Due(INR): {selectedPackage?.total_cost || 0}
+                  </p>
+                  <button onClick={handlePaymentSubmit} className="btn" style={{ maxWidth: '300px' }}>
+                    Pay Now
+                  </button>
+               </div>
+            )}
+
+            {/* SUCCESS STEP */}
+            {travelStep === 'success' && (
+               <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
+                  <h3 style={{color: 'var(--success)'}}>Payment Successful!</h3>
+                  <p style={{color: 'var(--text-muted)', marginTop: '1rem'}}>
+                    Your database has successfully recorded the Tourist, Booking, and Payment.<br/>
+                    You're all set!
+                  </p>
+                  <br/>
+                  <button className="btn btn-secondary" onClick={() => navigateToStep('districts')} style={{maxWidth: '200px'}}>
+                    Start New Plan
+                  </button>
+               </div>
+            )}
+
           </div>
         )}
       </main>
