@@ -27,7 +27,9 @@ body {
   box-sizing: inherit;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   margin-top: 0;
   font-weight: 600;
 }
@@ -148,6 +150,7 @@ h1, h2, h3 {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.2);
 }
+
 .form-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -220,7 +223,8 @@ table {
   text-align: left;
 }
 
-th, td {
+th,
+td {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-color);
 }
@@ -285,4 +289,43 @@ tr:hover td {
   color: var(--text-muted);
   font-weight: 500;
   margin-right: 0.5rem;
+}
+
+/* Dashboard Badges */
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+/* Dashboard Login */
+.login-container {
+  max-width: 450px;
+  margin: 0 auto;
+}
+
+/* Star Rating Animation */
+.crumb-btn:hover {
+  transform: scale(1.2);
+  color: var(--accent) !important;
+}
+
+/* Section Spacing */
+.dash-section {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile Adjustments */
+@media (max-width: 600px) {
+  .grid-cards {
+    grid-template-columns: 1fr;
+  }
 }
