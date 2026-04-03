@@ -192,7 +192,7 @@ function App() {
       <main className="main-content">
         {activeTab === 'welcome' && (
           <div className="welcome-card tab-content-reveal">
-            <h2 className="welcome-title">Emerald Valleys</h2>
+            <h2 className="welcome-title">Kerala Tourism Management</h2>
             <p className="welcome-narrative">Experience God's Own Country in its purest form.</p>
             <button className="btn" style={{ width: 'auto', marginTop: '2rem' }} onClick={() => setActiveTab('plan')}>Explore Kerala &rarr;</button>
           </div>
@@ -256,8 +256,8 @@ function App() {
             {userRole === 'none' ? (
               <div className="login-container">
                 <h2 className="main-tab-title" style={{ textAlign: 'center' }}>Portal Access</h2>
-                <input type="text" className="form-input" value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="Portal Access ID" />
-                <div className="grid-cards" style={{ marginTop: '1rem' }}><button className="btn" onClick={() => handleLogin('tourist')}>Tourist</button><button className="btn" onClick={() => handleLogin('district_officer')}>Officer</button><button className="btn" onClick={() => handleLogin('hotel_manager')}>Manager</button></div>
+                <input type="text" className="form-input" value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="Portal Access ID: Enter your unique Tourist/District/HotelID" />
+                <div className="grid-cards" style={{ marginTop: '1rem' }}><button className="btn" onClick={() => handleLogin('tourist')}>Tourist</button><button className="btn" onClick={() => handleLogin('district_officer')}>District Officer</button><button className="btn" onClick={() => handleLogin('hotel_manager')}>Hotel Manager</button></div>
               </div>
             ) : (
                 <div className="dashboard-view">
