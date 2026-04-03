@@ -136,20 +136,30 @@ function App() {
   const fetchDistrictOfficerDashboard = async () => {
     setLoadMsg('Fetching district stats...'); setDashboardData(null)
     try {
-      const { data, error } = await supabase
+      // 1. Fetch static district info
+      const { data: districtRows, error: districtErr } = await supabase
         .from('district')
-        .select('district_name, total_tourists, avg_revenue')
+        .select('district_name, total_tourists, district_code')
         .ilike('district_code', loggedInUser)
         .limit(1)
 
-      if (error) throw error
-      
-      if (data && data.length > 0) {
-        setDashboardData(data[0])
-        setLoadMsg('')
-      } else {
+      if (districtErr) throw districtErr
+      if (!districtRows || districtRows.length === 0) {
         setLoadMsg(`Error: No district record found for code "${loggedInUser}".`)
+        return
       }
+
+      // 2. Fetch average revenue via custom SQL function (RPC)
+      const { data: avgRevenue, error: rpcErr } = await supabase
+        .rpc('get_avg_revenue', { dist_code: districtRows[0].district_code })
+
+      if (rpcErr) throw rpcErr
+
+      setDashboardData({
+        ...districtRows[0],
+        avg_revenue: avgRevenue
+      })
+      setLoadMsg('')
     } catch (err) { 
       setLoadMsg(`Error: ${err.message}`) 
     }
