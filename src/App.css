@@ -1,13 +1,71 @@
-/* KTMS Utility & Layout Classes */
-
-.text-muted-sm {
+/* Sidebar Navigation Items */
+.nav-btn {
+  background: transparent;
+  border: 1px solid transparent;
   color: var(--text-muted);
-  margin-bottom: 1.5rem;
-  font-size: 0.9rem;
+  font-size: 1rem;
+  font-weight: 400;
+  cursor: pointer;
+  padding: 1rem 1.2rem;
+  border-radius: 12px;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.nav-btn:hover {
+  color: var(--cream-text);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(5px);
+}
+
+.nav-btn.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--moss), rgba(170, 196, 176, 0.15));
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+  font-weight: 500;
+}
+
+/* Welcome Page Specifics */
+.welcome-card {
+  max-width: 900px;
+}
+
+.welcome-title {
+  font-size: 5.5rem;
+  font-weight: 800;
+  line-height: 0.95;
+  margin-bottom: 2rem;
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, #fff 30%, var(--sage-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: revealSpring 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.welcome-narrative {
+  font-size: 1.4rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+  font-weight: 300;
+  max-width: 700px;
+  animation: mistFade 2s ease-out;
+}
+
+@keyframes mistFade {
+  0% { opacity: 0; filter: blur(20px); transform: translateY(20px); }
+  100% { opacity: 1; filter: blur(0); transform: translateY(0); }
 }
 
 .code-accent {
   color: var(--accent);
+  background: rgba(74, 222, 128, 0.1);
+  padding: 0 4px;
+  border-radius: 4px;
 }
 
 .flex-between {
