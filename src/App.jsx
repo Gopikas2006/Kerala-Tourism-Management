@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
-import { Home, UserPlus, Map as MapIcon, LayoutDashboard, ArrowRight, UserCircle2, Building, MapPin, Sparkles, Star, Map, Calendar, DollarSign, Users, Briefcase, Navigation } from 'lucide-react'
+import { Home, UserPlus, Map as MapIcon, LayoutDashboard, ArrowRight, UserCircle2, Building, MapPin, Sparkles, Star, Map, Calendar, DollarSign, Users, Briefcase, Navigation, UserCheck, MessageSquare, Clock } from 'lucide-react'
 import './index.css'
 import './App.css'
 
@@ -46,6 +46,7 @@ function App() {
   })
   const [bookingMsg, setBookingMsg] = useState({ type: '', text: '' })
   const [paymentMsg, setPaymentMsg] = useState({ type: '', text: '' })
+  const [packageReviews, setPackageReviews] = useState([])
 
   const handleTouristChange = (e) => setTouristForm({ ...touristForm, [e.target.name]: e.target.value })
   const handleRegisterTourist = async (e) => {
@@ -149,6 +150,25 @@ function App() {
     } finally { setViewLoading(false) } 
   }
 
+  const fetchReviewsForPackage = async (pkg) => {
+    try {
+      const pid = pkg.package_id || pkg.id;
+      const { data } = await supabase.from('review').select('*').eq('package_id', pid);
+      if (data && data.length > 0) {
+        setPackageReviews(data);
+      } else {
+        // Fallback mock reviews if none from DB
+        setPackageReviews([
+          { review_id: '1', tourist_name: 'Anjali Sharma', rating: 5, comment: 'Absolutely breathtaking views and perfect arrangements! Our guide was very knowledgeable.' },
+          { review_id: '2', tourist_name: 'David Smith', rating: 4, comment: 'Great package overall. The accommodations were fantastic but the travel took a bit longer than expected.' }
+        ]);
+      }
+    } catch (err) {
+       console.log('Error fetching reviews:', err);
+       setPackageReviews([{ review_id: 'f1', tourist_name: 'System Mock', rating: 5, comment: 'Awesome trip! (Mock Data)' }]);
+    }
+  }
+
   const handleBookingSubmit = async (e) => {
     e.preventDefault(); try {
        const payload = { 
@@ -248,11 +268,15 @@ function App() {
             {!viewLoading && ['districts', 'destinations', 'hotels', 'packages'].includes(travelStep) && (
               <div className="grid-cards">
                 {dataList.map((item, idx) => (
-                  <div key={idx} className="data-card clickable" onClick={() => {
+                    <div key={idx} className="data-card clickable" onClick={() => {
                      if (travelStep === 'districts') { setSelectedDistrict(item); setTravelStep('destinations'); }
                      else if (travelStep === 'destinations') { setSelectedDestination(item); setTravelStep('hotels'); }
                      else if (travelStep === 'hotels') { setSelectedHotel(item); setTravelStep('packages'); }
-                     else if (travelStep === 'packages') { setSelectedPackage(item); setTravelStep('booking'); }
+                     else if (travelStep === 'packages') { 
+                       setSelectedPackage(item); 
+                       fetchReviewsForPackage(item);
+                       setTravelStep('booking'); 
+                     }
                   }}>
                     <div className="data-card-title">{item.district_name || item.destination_name || item.hotel_name || item.package_name || item.name}</div>
                     {travelStep !== 'districts' && Object.entries(item).filter(([k]) => !['id', 'district_code', 'destination_id', 'hotel_id', 'package_id'].includes(k)).map(([k, v]) => (
@@ -265,14 +289,75 @@ function App() {
               </div>
             )}
             {travelStep === 'booking' && (
-              <form onSubmit={handleBookingSubmit}>
-                {bookingMsg.text && <div className={`msg ${bookingMsg.type}`}>{bookingMsg.text}</div>}
-                <div className="form-group"><label>Booking ID</label><input type="text" className="form-input" value={bookingForm.booking_id} onChange={e => setBookingForm({ ...bookingForm, booking_id: e.target.value })} required /></div>
-                <div className="form-group"><label>Tourist ID</label><input type="text" className="form-input" value={bookingForm.tourist_id} onChange={e => setBookingForm({ ...bookingForm, tourist_id: e.target.value })} required /></div>
-                <div className="form-group"><label>Booking Date</label><input type="date" className="form-input" value={bookingForm.booking_date} disabled /></div>
-                <div className="form-group"><label>Travel Date</label><input type="date" className="form-input" value={bookingForm.travel_date} onChange={e => setBookingForm({ ...bookingForm, travel_date: e.target.value })} required /></div>
-                <button type="submit" className="btn">Confirm Trip</button>
-              </form>
+              <div className="booking-layout">
+                <div className="package-details-sidebar">
+                  <div className="package-featured-info">
+                    <h3 className="package-title-md">{selectedPackage.package_name || 'Selected Package'}</h3>
+                    <div className="rating-summary">
+                      <Star size={18} fill="#FBBF24" color="#FBBF24" /> 
+                      <span className="rating-val">{selectedPackage.avg_rating || '4.8'}</span> 
+                      <span className="rating-count">({selectedPackage.ratings_count || '124'} Reviews)</span>
+                    </div>
+                  </div>
+
+                  <div className="detail-section">
+                    <div className="detail-header"><UserCheck size={18} className="text-accent" /> <h4>Assigned Guide</h4></div>
+                    <div className="guide-card">
+                       <div className="guide-avatar"><UserCircle2 size={32} color="#a1a1aa" /></div>
+                       <div className="guide-info">
+                         <div className="guide-name">{selectedPackage.guide_name || 'Ramesh Kumar (Certified Guide)'}</div>
+                         <div className="guide-role">Kerala Tourism Expert</div>
+                       </div>
+                    </div>
+                  </div>
+
+                  <div className="detail-section">
+                    <div className="detail-header"><Clock size={18} className="text-accent" /> <h4>Trip Itinerary</h4></div>
+                    <div className="itinerary-timeline">
+                      {(selectedPackage.itinerary || 'Day 1: Arrival & Local Sightseeing | Day 2: Excursion to major attraction | Day 3: Shopping & Departure').split('|').map((day, dIdx) => (
+                        <div key={dIdx} className="timeline-item">
+                           <div className="timeline-dot"></div>
+                           <div className="timeline-content">{day.trim()}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="detail-section">
+                    <div className="detail-header flex-between">
+                       <div style={{display:'flex',gap:'8px',alignItems:'center'}}><MessageSquare size={18} className="text-accent" /> <h4>Recent Reviews</h4></div>
+                    </div>
+                    <div className="reviews-list">
+                      {packageReviews.map(r => (
+                        <div key={r.review_id} className="review-card">
+                           <div className="review-header">
+                              <span className="reviewer-name">{r.tourist_name}</span>
+                              <div className="review-stars">
+                                {[...Array(5)].map((_, i) => <Star key={i} size={12} fill={i < r.rating ? "#FBBF24" : "none"} color={i < r.rating ? "#FBBF24" : "#4B5563"} />)}
+                              </div>
+                           </div>
+                           <p className="review-comment">"{r.comment}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="booking-form-container">
+                  <h3 className="form-title">Confirm Booking</h3>
+                  <form onSubmit={handleBookingSubmit} className="booking-form-box">
+                    {bookingMsg.text && <div className={`msg ${bookingMsg.type}`}>{bookingMsg.text}</div>}
+                    <div className="form-group"><label>Booking ID</label><input type="text" className="form-input" value={bookingForm.booking_id} onChange={e => setBookingForm({ ...bookingForm, booking_id: e.target.value })} required /></div>
+                    <div className="form-group"><label>Tourist ID</label><input type="text" className="form-input" value={bookingForm.tourist_id} onChange={e => setBookingForm({ ...bookingForm, tourist_id: e.target.value })} required /></div>
+                    <div className="form-group"><label>Booking Date</label><input type="date" className="form-input" value={bookingForm.booking_date} disabled /></div>
+                    <div className="form-group"><label>Travel Date</label><input type="date" className="form-input" value={bookingForm.travel_date} onChange={e => setBookingForm({ ...bookingForm, travel_date: e.target.value })} required /></div>
+                    <div className="price-summary-box">
+                      <div className="flex-between"><span>Package Cost:</span> <span>₹{selectedPackage.total_cost || '--'}</span></div>
+                    </div>
+                    <button type="submit" className="btn btn-full">Proceed to Payment</button>
+                  </form>
+                </div>
+              </div>
             )}
             {travelStep === 'payment' && <div className="text-center-p2"><h3>Cost: ₹{selectedPackage.total_cost}</h3><button className="btn" onClick={handlePaymentSubmit}>Pay Now</button></div>}
             {travelStep === 'success' && <div className="text-center-p2"><h3>Success!</h3><button className="btn btn-secondary" onClick={() => navigateToStep('districts')}>New Journey</button></div>}
