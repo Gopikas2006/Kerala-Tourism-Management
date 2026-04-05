@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
+import { Home, UserPlus, Map as MapIcon, LayoutDashboard, ArrowRight, UserCircle2, Building, MapPin, Sparkles, Star, Map, Calendar, DollarSign, Users, Briefcase, Navigation } from 'lucide-react'
 import './index.css'
 import './App.css'
 
@@ -182,19 +183,46 @@ function App() {
       <aside className="sidebar">
         <div className="sidebar-brand"><h1>Kerala Tourism</h1></div>
         <nav className="sidebar-nav">
-          <button className={`nav-btn ${activeTab === 'welcome' ? 'active' : ''}`} onClick={() => setActiveTab('welcome')}>Welcome</button>
-          <button className={`nav-btn ${activeTab === 'register' ? 'active' : ''}`} onClick={() => setActiveTab('register')}>Register</button>
-          <button className={`nav-btn ${activeTab === 'plan' ? 'active' : ''}`} onClick={() => setActiveTab('plan')}>Plan Trip</button>
-          <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>Dashboard</button>
+          <button className={`nav-btn ${activeTab === 'welcome' ? 'active' : ''}`} onClick={() => setActiveTab('welcome')}><Home size={18} /> Welcome</button>
+          <button className={`nav-btn ${activeTab === 'register' ? 'active' : ''}`} onClick={() => setActiveTab('register')}><UserPlus size={18} /> Register</button>
+          <button className={`nav-btn ${activeTab === 'plan' ? 'active' : ''}`} onClick={() => setActiveTab('plan')}><MapIcon size={18} /> Plan Trip</button>
+          <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}><LayoutDashboard size={18} /> Dashboard</button>
         </nav>
       </aside>
 
       <main className="main-content">
         {activeTab === 'welcome' && (
           <div className="welcome-card tab-content-reveal">
-            <h2 className="welcome-title">Kerala Tourism Management</h2>
-            <p className="welcome-narrative">Experience God's Own Country in its purest form.</p>
-            <button className="btn" style={{ width: 'auto', marginTop: '2rem' }} onClick={() => setActiveTab('plan')}>Explore Kerala &rarr;</button>
+            <div className="welcome-content-full">
+               <div className="tag-pill">
+                  <Sparkles size={14} className="tag-icon" /> <span>DISCOVER THE MAGIC</span>
+               </div>
+               <h2 className="welcome-title-large">Kerala Tourism<br/>Management</h2>
+               <p className="welcome-narrative">Experience God's Own Country in its purest form. Plan seamless trips, book top-rated packages, and unlock breathtaking adventures—all in one place.</p>
+               
+               <div className="features-row">
+                 <div className="feature-card">
+                   <div className="feature-icon"><Map size={24} color="#4ADE80" /></div>
+                   <h3 className="feature-title">Tailored Plans</h3>
+                   <p className="feature-desc">Explore diverse districts and destinations mapped for you.</p>
+                 </div>
+                 <div className="feature-card">
+                   <div className="feature-icon"><Building size={24} color="#F87171" /></div>
+                   <h3 className="feature-title">Premium Hotels</h3>
+                   <p className="feature-desc">Find luxurious and highly-rated accommodations.</p>
+                 </div>
+                 <div className="feature-card">
+                   <div className="feature-icon"><Star size={24} color="#FBBF24" /></div>
+                   <h3 className="feature-title">Easy Booking</h3>
+                   <p className="feature-desc">Sign up once and handle secure trip bookings instantly.</p>
+                 </div>
+               </div>
+
+               <div className="welcome-actions">
+                 <button className="btn btn-glow welcome-action-btn" onClick={() => setActiveTab('plan')}>EXPLORE PACKAGES &rarr;</button>
+                 <button className="btn btn-outline welcome-action-btn" onClick={() => setActiveTab('register')}>REGISTER HERE</button>
+               </div>
+            </div>
           </div>
         )}
 
@@ -254,10 +282,27 @@ function App() {
         {activeTab === 'dashboard' && (
           <div className="card tab-content-reveal">
             {userRole === 'none' ? (
-              <div className="login-container">
-                <h2 className="main-tab-title" style={{ textAlign: 'center' }}>Portal Access</h2>
-                <input type="text" className="form-input" value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="Portal Access ID: Enter your unique Tourist/District/HotelID" />
-                <div className="grid-cards" style={{ marginTop: '1rem' }}><button className="btn" onClick={() => handleLogin('tourist')}>Tourist</button><button className="btn" onClick={() => handleLogin('district_officer')}>District Officer</button><button className="btn" onClick={() => handleLogin('hotel_manager')}>Hotel Manager</button></div>
+              <div className="login-wrapper">
+                <div className="login-container tab-content-reveal">
+                  <div className="login-icon-header">
+                     <UserCircle2 size={48} className="text-accent-mb1" style={{ color: 'var(--accent)', margin: '0 auto 1rem auto' }} />
+                  </div>
+                  <h2 className="main-tab-title" style={{ textAlign: 'center', marginBottom: '0.5rem' }}>Portal Access</h2>
+                  <p className="text-muted" style={{ textAlign: 'center', marginBottom: '2rem' }}>Sign in to manage your bookings or properties</p>
+                  <div className="form-group">
+                     <input type="text" className="form-input login-input" value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="Enter unique ID (e.g. T01...)" />
+                  </div>
+                  <div className="login-actions">
+                     <button className="btn btn-login-role" onClick={() => handleLogin('tourist')}><UserCircle2 size={16} /> Tourist</button>
+                     <button className="btn btn-login-role" onClick={() => handleLogin('district_officer')}><MapPin size={16} /> District Officer</button>
+                     <button className="btn btn-login-role" onClick={() => handleLogin('hotel_manager')}><Building size={16} /> Hotel Manager</button>
+                  </div>
+                  <div className="login-divider"><span>OR</span></div>
+                  <div className="register-prompt">
+                    <p className="text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.95rem' }}>New here? Create an account</p>
+                    <button className="btn btn-secondary btn-register-new" onClick={() => setActiveTab('register')} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}><UserPlus size={16} /> Register as Tourist</button>
+                  </div>
+                </div>
               </div>
             ) : (
                 <div className="dashboard-view">
@@ -274,11 +319,11 @@ function App() {
                      <div className="grid-cards">
                         {dashboardData?.map(b => (
                           <div key={b.booking_id} className="data-card">
-                             <div className="data-card-title">{b.package_id?.package_name}</div>
-                             <div className="data-card-field"><span className="data-card-field-label">Destination:</span> <span>{b.package_id?.destination_id?.destination_name || 'N/A'}</span></div>
-                             <div className="data-card-field"><span className="data-card-field-label">Date:</span> <span>{b.travel_date}</span></div>
-                             <div className="data-card-field"><span className="data-card-field-label">Cost:</span> <span>₹{b.package_id?.total_cost}</span></div>
-                             <div className="data-card-field"><span className="data-card-field-label">Duration:</span> <span>{b.package_id?.duration_days} Days</span></div>
+                             <div className="data-card-title flex-between"><span>{b.package_id?.package_name}</span> <Navigation size={20} className="text-accent" /></div>
+                             <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><MapPin size={14} className="text-muted"/> <span className="data-card-field-label">Destination:</span> <span style={{color:'#fff'}}>{b.package_id?.destination_id?.destination_name || 'N/A'}</span></div>
+                             <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><Calendar size={14} className="text-muted"/> <span className="data-card-field-label">Date:</span> <span style={{color:'#fff'}}>{b.travel_date}</span></div>
+                             <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><DollarSign size={14} className="text-muted"/> <span className="data-card-field-label">Cost:</span> <span style={{color:'#fff'}}>₹{b.package_id?.total_cost}</span></div>
+                             <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><Home size={14} className="text-muted"/> <span className="data-card-field-label">Duration:</span> <span style={{color:'#fff'}}>{b.package_id?.duration_days} Days</span></div>
                           </div>
                         ))}
                      </div>
@@ -287,10 +332,10 @@ function App() {
                    {/* District Officer Dashboard */}
                    {userRole === 'district_officer' && (
                       <div className="grid-cards">
-                         <div className="data-card"><div className="data-card-field-label">District</div><div className="stat-title-lg">{dashboardData?.district_name}</div></div>
-                         <div className="data-card"><div className="data-card-field-label">Destinations</div><div className="stat-value-xl">{dashboardData?.dest_count}</div></div>
-                         <div className="data-card"><div className="data-card-field-label">Total Tourists</div><div className="stat-value-xl">{dashboardData?.total_tourists}</div></div>
-                         <div className="data-card"><div className="data-card-field-label">Avg Revenue</div><div className="stat-value-xl-accent">₹{dashboardData?.avg_revenue}</div></div>
+                         <div className="data-card"><div className="data-card-field-label flex-between"><span>District</span> <MapPin size={18} className="text-accent"/></div><div className="stat-title-lg" style={{marginTop:'10px'}}>{dashboardData?.district_name}</div></div>
+                         <div className="data-card"><div className="data-card-field-label flex-between"><span>Destinations</span> <MapIcon size={18} className="text-accent"/></div><div className="stat-value-xl" style={{marginTop:'10px'}}>{dashboardData?.dest_count}</div></div>
+                         <div className="data-card"><div className="data-card-field-label flex-between"><span>Total Tourists</span> <Users size={18} className="text-accent"/></div><div className="stat-value-xl" style={{marginTop:'10px'}}>{dashboardData?.total_tourists}</div></div>
+                         <div className="data-card"><div className="data-card-field-label flex-between"><span>Avg Revenue</span> <DollarSign size={18} color="#4ADE80"/></div><div className="stat-value-xl-accent" style={{marginTop:'10px'}}>₹{dashboardData?.avg_revenue}</div></div>
                       </div>
                    )}
 
@@ -299,9 +344,9 @@ function App() {
                       <div className="grid-cards">
                          {dashboardData?.map(pkg => (
                             <div className="data-card" key={pkg.package_id}>
-                               <div className="data-card-title">{pkg.package_name}</div>
-                               <div className="data-card-field"><span className="data-card-field-label">Cost:</span> <span>₹{pkg.total_cost}</span></div>
-                               <div className="data-card-field"><span className="data-card-field-label">Bookings:</span> <span>{pkg.booking_count}</span></div>
+                               <div className="data-card-title flex-between"><span>{pkg.package_name}</span> <Briefcase size={20} className="text-accent"/></div>
+                               <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><DollarSign size={14} className="text-muted"/> <span className="data-card-field-label">Cost:</span> <span style={{color:'#fff'}}>₹{pkg.total_cost}</span></div>
+                               <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><Users size={14} className="text-muted"/> <span className="data-card-field-label">Bookings:</span> <span style={{color:'#fff'}}>{pkg.booking_count}</span></div>
                             </div>
                          ))}
                       </div>

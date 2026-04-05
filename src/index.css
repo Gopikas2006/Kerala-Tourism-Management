@@ -306,11 +306,14 @@ tr:hover td {
 }
 
 .data-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--glass-border);
-  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
   padding: 1.8rem;
-  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  backdrop-filter: blur(12px);
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+  display: flex;
+  flex-direction: column;
 }
 
 .data-card.clickable {
@@ -318,10 +321,10 @@ tr:hover td {
 }
 
 .data-card.clickable:hover {
-  transform: scale(1.03) translateY(-5px);
-  background: rgba(255, 255, 255, 0.06);
-  border-color: var(--sage-accent);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  transform: translateY(-8px);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(74, 222, 128, 0.4);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), 0 0 20px rgba(74, 222, 128, 0.1);
 }
 
 .data-card-title {
