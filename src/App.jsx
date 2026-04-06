@@ -57,6 +57,10 @@ function App() {
   const [destinationMsg, setDestinationMsg] = useState({ type: '', text: '' })
   const [showAddDestination, setShowAddDestination] = useState(false)
 
+  const [packageForm, setPackageForm] = useState({ package_id: '', package_name: '', duration_days: '', total_cost: '', guide_name: '', itinerary: '' })
+  const [packageMsg, setPackageMsg] = useState({ type: '', text: '' })
+  const [showAddPackage, setShowAddPackage] = useState(false)
+
   const handleTouristChange = (e) => setTouristForm({ ...touristForm, [e.target.name]: e.target.value })
   const handleRegisterTourist = async (e) => {
     e.preventDefault(); setTouristMsg({ type: '', text: '' })
@@ -103,7 +107,11 @@ function App() {
 
   const fetchHotelManagerDashboard = async () => {
      setLoadMsg('Syncing Inventory...'); try {
-        // Optimized: Fetching packages AND their booking counts in a single pass
+        // First get hotel details (specifically destination_id)
+        const { data: hotel, error: hotelErr } = await supabase.from('hotel').select('*').ilike('hotel_id', loggedInUser).single()
+        if (hotelErr) throw hotelErr
+
+        // Then get packages
         const { data, error } = await supabase
           .from('package')
           .select('*, booking(count)')
@@ -116,9 +124,29 @@ function App() {
           booking_count: pkg.booking?.[0]?.count || 0
         }))
 
-        setDashboardData(optimizedPkgs)
+        setDashboardData({ hotelInfo: hotel, packages: optimizedPkgs })
         setLoadMsg('')
      } catch (err) { setLoadMsg('Error: ' + err.message) }
+  }
+
+  const handlePackageSubmit = async (e) => {
+    e.preventDefault(); setPackageMsg({ type: '', text: '' });
+    try {
+      const payload = {
+        ...packageForm,
+        hotel_id: dashboardData.hotelInfo.hotel_id,
+        destination_id: dashboardData.hotelInfo.destination_id
+      };
+      const { error } = await supabase.from('package').insert([payload]);
+      if (error) throw error;
+      setPackageMsg({ type: 'success', text: 'Package Added Successfully!' });
+      setTimeout(() => {
+        setShowAddPackage(false);
+        setPackageForm({ package_id: '', package_name: '', duration_days: '', total_cost: '', guide_name: '', itinerary: '' });
+        setPackageMsg({ type: '', text: '' });
+        fetchHotelManagerDashboard(); 
+      }, 2000);
+    } catch (err) { setPackageMsg({ type: 'error', text: err.message }); }
   }
 
   const handleDestinationSubmit = async (e) => {
@@ -348,7 +376,12 @@ function App() {
                      }
                   }}>
                     <div className="data-card-title">{item.district_name || item.destination_name || item.hotel_name || item.package_name || item.name}</div>
-                    {travelStep !== 'districts' && Object.entries(item).filter(([k]) => !['id', 'district_code', 'destination_id', 'hotel_id', 'package_id'].includes(k)).map(([k, v]) => (
+                    {travelStep === 'packages' && item.duration_days && (
+                      <div className="data-card-field" style={{marginBottom: '8px', color: 'var(--accent)'}}>
+                        <Clock size={14} /> <span>Duration: {item.duration_days} Days</span>
+                      </div>
+                    )}
+                    {travelStep !== 'districts' && Object.entries(item).filter(([k]) => !['id', 'district_code', 'destination_id', 'hotel_id', 'package_id', 'duration_days'].includes(k)).map(([k, v]) => (
                       <div key={k} className="data-card-field">
                         <span className="data-card-field-label">{k.replace('_', ' ')}:</span> <span>{v}</span>
                       </div>
@@ -586,22 +619,79 @@ function App() {
                                  <label>Description</label>
                                  <textarea className="form-input text-area" placeholder="Brief details about the destination..." value={destinationForm.description} onChange={e => setDestinationForm({...destinationForm, description: e.target.value})} required rows={3}></textarea>
                               </div>
-                              <button type="submit" className="btn btn-full">Register Destination</button>
+                              <div className="modal-actions" style={{display:'flex', gap:'1rem', marginTop:'2rem'}}>
+                                 <button type="button" className="btn btn-outline" style={{flex:1}} onClick={() => setShowAddDestination(false)}>Back</button>
+                                 <button type="submit" className="btn" style={{flex:2}}>Register Destination</button>
+                              </div>
                            </form>
                         </div>
                      </div>
                    )}
 
                    {/* Hotel Manager Dashboard */}
-                   {userRole === 'hotel_manager' && (
-                      <div className="grid-cards">
-                         {dashboardData?.map(pkg => (
-                            <div className="data-card" key={pkg.package_id}>
-                               <div className="data-card-title flex-between"><span>{pkg.package_name}</span> <Briefcase size={20} className="text-accent"/></div>
-                               <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><DollarSign size={14} className="text-muted"/> <span className="data-card-field-label">Cost:</span> <span style={{color:'#fff'}}>₹{pkg.total_cost}</span></div>
-                               <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><Users size={14} className="text-muted"/> <span className="data-card-field-label">Bookings:</span> <span style={{color:'#fff'}}>{pkg.booking_count}</span></div>
-                            </div>
-                         ))}
+                   {userRole === 'hotel_manager' && dashboardData && (
+                      <div className="hotel-manager-dash-container">
+                         <div className="grid-cards">
+                            {dashboardData.packages?.map(pkg => (
+                               <div className="data-card" key={pkg.package_id}>
+                                  <div className="data-card-title flex-between"><span>{pkg.package_name}</span> <Briefcase size={20} className="text-accent"/></div>
+                                  <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><Clock size={14} className="text-muted"/> <span className="data-card-field-label">Duration:</span> <span style={{color:'#fff'}}>{pkg.duration_days || 'N/A'} Days</span></div>
+                                  <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><DollarSign size={14} className="text-muted"/> <span className="data-card-field-label">Cost:</span> <span style={{color:'#fff'}}>₹{pkg.total_cost}</span></div>
+                                  <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><Users size={14} className="text-muted"/> <span className="data-card-field-label">Bookings:</span> <span style={{color:'#fff'}}>{pkg.booking_count}</span></div>
+                               </div>
+                            ))}
+                         </div>
+                         <div className="dash-section-header" style={{marginTop:'3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}><Briefcase size={20} className="text-accent" /> <h3>Manage Packages</h3></div>
+                            <button className="btn btn-small" onClick={() => setShowAddPackage(true)}>+ Add Package</button>
+                         </div>
+                      </div>
+                   )}
+
+                   {/* Add Package Modal */}
+                   {showAddPackage && (
+                     <div className="modal-overlay">
+                        <div className="modal-content tab-content-reveal">
+                           <div className="flex-between"><h3>Add New Package</h3><button className="btn-close" onClick={() => setShowAddPackage(false)}>&times;</button></div>
+                           <p className="text-muted-sm mb-2">Register a new tour package for your hotel.</p>
+                           {packageMsg.text && <div className={`msg ${packageMsg.type}`}>{packageMsg.text}</div>}
+                           <form onSubmit={handlePackageSubmit}>
+                              <div className="form-group">
+                                 <label>Hotel ID</label>
+                                 <input type="text" className="form-input" value={dashboardData?.hotelInfo?.hotel_id || ''} disabled />
+                              </div>
+                              <div className="form-group">
+                                 <label>Package ID (Manual)</label>
+                                 <input type="text" className="form-input" value={packageForm.package_id} onChange={e => setPackageForm({...packageForm, package_id: e.target.value})} placeholder="e.g., PKG_001" required />
+                              </div>
+                              <div className="form-group">
+                                 <label>Package Name</label>
+                                 <input type="text" className="form-input" value={packageForm.package_name} onChange={e => setPackageForm({...packageForm, package_name: e.target.value})} required />
+                               </div>
+                               <div className="form-row" style={{display:'flex', gap:'1rem'}}>
+                                 <div className="form-group" style={{flex:1}}>
+                                    <label>Duration (Days)</label>
+                                    <input type="number" className="form-input" value={packageForm.duration_days} onChange={e => setPackageForm({...packageForm, duration_days: e.target.value})} required />
+                                 </div>
+                                 <div className="form-group" style={{flex:1}}>
+                                    <label>Total Cost (₹)</label>
+                                    <input type="number" className="form-input" value={packageForm.total_cost} onChange={e => setPackageForm({...packageForm, total_cost: e.target.value})} required />
+                                 </div>
+                               </div>
+                               <div className="form-group">
+                                  <label>Assigned Guide Name</label>
+                                  <input type="text" className="form-input" value={packageForm.guide_name} onChange={e => setPackageForm({...packageForm, guide_name: e.target.value})} required />
+                               </div>
+                               <div className="form-group">
+                                  <label>Itinerary</label>
+                                  <textarea className="form-input text-area" placeholder="Day 1: ... | Day 2: ... | Day 3: ..." value={packageForm.itinerary} onChange={e => setPackageForm({...packageForm, itinerary: e.target.value})} required rows={3}></textarea>
+                               </div>
+                               <div className="modal-actions">
+                                  <button type="button" className="btn btn-outline" onClick={() => setShowAddPackage(false)}>Back</button>
+                                  <button type="submit" className="btn">Register Package</button>
+                               </div>
+                            </form>
+                         </div>
                       </div>
                    )}
                 </div>

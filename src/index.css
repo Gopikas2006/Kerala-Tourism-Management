@@ -9,6 +9,7 @@
   --accent-hover: #22C55E;
   --success: #38a169;
   --error: #e53e3e;
+  --bg-darker: #080C0A;
 }
 
 body {
@@ -156,6 +157,7 @@ h3 {
   border: 1px solid var(--glass-border);
   border-radius: 20px;
   padding: 2.5rem;
+  margin-top: 2rem;
   backdrop-filter: blur(20px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   animation: revealSpring 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
@@ -238,6 +240,19 @@ h3 {
 .btn-secondary:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
   box-shadow: none;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--sage-accent);
+  color: var(--cream-text);
+  transform: translateY(-2px);
 }
 
 /* Messages */
@@ -659,21 +674,57 @@ tr:hover td {
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(12px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 2000;
-  padding: 20px;
+  padding: 5vh 20px;
 }
 
-.modal-content.review-modal {
-  background: #0D1611;
+.modal-content {
+  background: var(--bg-nature);
   border: 1px solid var(--glass-border);
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
   border-radius: 24px;
-  max-width: 550px;
+  max-width: 650px;
   width: 100%;
-  padding: 3rem;
+  padding: 2.5rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sage-accent) transparent;
   animation: revealSpring 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background-color: var(--sage-accent);
+  border-radius: 10px;
+}
+
+.modal-content.review-modal {
+  max-width: 550px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.modal-actions .btn {
+  flex: 1;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
 }
 
 .btn-close {
@@ -683,6 +734,9 @@ tr:hover td {
   font-size: 2rem;
   cursor: pointer;
   line-height: 1;
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
 }
 
 .btn-close:hover {
