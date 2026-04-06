@@ -53,6 +53,10 @@ function App() {
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' })
   const [reviewMsg, setReviewMsg] = useState({ type: '', text: '' })
 
+  const [destinationForm, setDestinationForm] = useState({ destination_id: '', destination_name: '', best_season: '', description: '' })
+  const [destinationMsg, setDestinationMsg] = useState({ type: '', text: '' })
+  const [showAddDestination, setShowAddDestination] = useState(false)
+
   const handleTouristChange = (e) => setTouristForm({ ...touristForm, [e.target.name]: e.target.value })
   const handleRegisterTourist = async (e) => {
     e.preventDefault(); setTouristMsg({ type: '', text: '' })
@@ -115,6 +119,28 @@ function App() {
         setDashboardData(optimizedPkgs)
         setLoadMsg('')
      } catch (err) { setLoadMsg('Error: ' + err.message) }
+  }
+
+  const handleDestinationSubmit = async (e) => {
+    e.preventDefault(); setDestinationMsg({ type: '', text: '' });
+    try {
+      const payload = {
+        destination_id: destinationForm.destination_id,
+        destination_name: destinationForm.destination_name,
+        best_season: destinationForm.best_season,
+        description: destinationForm.description,
+        district_code: dashboardData.district_code
+      };
+      const { error } = await supabase.from('destination').insert([payload]);
+      if (error) throw error;
+      setDestinationMsg({ type: 'success', text: 'Destination Added Successfully!' });
+      setTimeout(() => {
+        setShowAddDestination(false);
+        setDestinationForm({ destination_id: '', destination_name: '', best_season: '', description: '' });
+        setDestinationMsg({ type: '', text: '' });
+        fetchDistrictOfficerDashboard(); 
+      }, 2000);
+    } catch (err) { setDestinationMsg({ type: 'error', text: err.message }); }
   }
 
   const handleReviewSubmit = async (e) => {
@@ -518,12 +544,52 @@ function App() {
                    
                    {/* District Officer Dashboard */}
                    {userRole === 'district_officer' && (
-                      <div className="grid-cards">
-                         <div className="data-card"><div className="data-card-field-label flex-between"><span>District</span> <MapPin size={18} className="text-accent"/></div><div className="stat-title-lg" style={{marginTop:'10px'}}>{dashboardData?.district_name}</div></div>
-                         <div className="data-card"><div className="data-card-field-label flex-between"><span>Destinations</span> <MapIcon size={18} className="text-accent"/></div><div className="stat-value-xl" style={{marginTop:'10px'}}>{dashboardData?.dest_count}</div></div>
-                         <div className="data-card"><div className="data-card-field-label flex-between"><span>Total Tourists</span> <Users size={18} className="text-accent"/></div><div className="stat-value-xl" style={{marginTop:'10px'}}>{dashboardData?.total_tourists}</div></div>
-                         <div className="data-card"><div className="data-card-field-label flex-between"><span>Avg Revenue</span> <DollarSign size={18} color="#4ADE80"/></div><div className="stat-value-xl-accent" style={{marginTop:'10px'}}>₹{dashboardData?.avg_revenue}</div></div>
+                      <div className="district-officer-dash-container">
+                         <div className="grid-cards">
+                            <div className="data-card"><div className="data-card-field-label flex-between"><span>District</span> <MapPin size={18} className="text-accent"/></div><div className="stat-title-lg" style={{marginTop:'10px'}}>{dashboardData?.district_name}</div></div>
+                            <div className="data-card"><div className="data-card-field-label flex-between"><span>Destinations</span> <MapIcon size={18} className="text-accent"/></div><div className="stat-value-xl" style={{marginTop:'10px'}}>{dashboardData?.dest_count}</div></div>
+                            <div className="data-card"><div className="data-card-field-label flex-between"><span>Total Tourists</span> <Users size={18} className="text-accent"/></div><div className="stat-value-xl" style={{marginTop:'10px'}}>{dashboardData?.total_tourists}</div></div>
+                            <div className="data-card"><div className="data-card-field-label flex-between"><span>Avg Revenue</span> <DollarSign size={18} color="#4ADE80"/></div><div className="stat-value-xl-accent" style={{marginTop:'10px'}}>₹{dashboardData?.avg_revenue}</div></div>
+                         </div>
+                         <div className="dash-section-header" style={{marginTop:'3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}><MapPin size={20} className="text-accent" /> <h3>Manage Destinations</h3></div>
+                            <button className="btn btn-small" onClick={() => setShowAddDestination(true)}>+ Add Destination</button>
+                         </div>
                       </div>
+                   )}
+
+                   {/* Add Destination Modal */}
+                   {showAddDestination && (
+                     <div className="modal-overlay">
+                        <div className="modal-content tab-content-reveal">
+                           <div className="flex-between"><h3>Add New Destination</h3><button className="btn-close" onClick={() => setShowAddDestination(false)}>&times;</button></div>
+                           <p className="text-muted-sm mb-2">Register a new destination in your district.</p>
+                           {destinationMsg.text && <div className={`msg ${destinationMsg.type}`}>{destinationMsg.text}</div>}
+                           <form onSubmit={handleDestinationSubmit}>
+                              <div className="form-group">
+                                 <label>District Code</label>
+                                 <input type="text" className="form-input" value={dashboardData?.district_code || ''} disabled />
+                              </div>
+                              <div className="form-group">
+                                 <label>Destination ID (Manual)</label>
+                                 <input type="text" className="form-input" value={destinationForm.destination_id} onChange={e => setDestinationForm({...destinationForm, destination_id: e.target.value})} required />
+                              </div>
+                              <div className="form-group">
+                                 <label>Destination Name</label>
+                                 <input type="text" className="form-input" value={destinationForm.destination_name} onChange={e => setDestinationForm({...destinationForm, destination_name: e.target.value})} required />
+                              </div>
+                              <div className="form-group">
+                                 <label>Best Season</label>
+                                 <input type="text" className="form-input" value={destinationForm.best_season} onChange={e => setDestinationForm({...destinationForm, best_season: e.target.value})} placeholder="e.g., September to March" required />
+                              </div>
+                              <div className="form-group">
+                                 <label>Description</label>
+                                 <textarea className="form-input text-area" placeholder="Brief details about the destination..." value={destinationForm.description} onChange={e => setDestinationForm({...destinationForm, description: e.target.value})} required rows={3}></textarea>
+                              </div>
+                              <button type="submit" className="btn btn-full">Register Destination</button>
+                           </form>
+                        </div>
+                     </div>
                    )}
 
                    {/* Hotel Manager Dashboard */}
