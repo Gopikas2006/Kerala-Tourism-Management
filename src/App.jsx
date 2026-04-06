@@ -48,6 +48,11 @@ function App() {
   const [paymentMsg, setPaymentMsg] = useState({ type: '', text: '' })
   const [packageReviews, setPackageReviews] = useState([])
 
+  // Review System State
+  const [isReviewing, setIsReviewing] = useState(null)
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' })
+  const [reviewMsg, setReviewMsg] = useState({ type: '', text: '' })
+
   const handleTouristChange = (e) => setTouristForm({ ...touristForm, [e.target.name]: e.target.value })
   const handleRegisterTourist = async (e) => {
     e.preventDefault(); setTouristMsg({ type: '', text: '' })
@@ -93,16 +98,54 @@ function App() {
   }
 
   const fetchHotelManagerDashboard = async () => {
-     setLoadMsg('Loading Packages...'); try {
-        const { data, error } = await supabase.from('package').select('*').ilike('hotel_id', loggedInUser)
+     setLoadMsg('Syncing Inventory...'); try {
+        // Optimized: Fetching packages AND their booking counts in a single pass
+        const { data, error } = await supabase
+          .from('package')
+          .select('*, booking(count)')
+          .ilike('hotel_id', loggedInUser)
+        
         if (error) throw error
-        const detailedPkgs = await Promise.all((data || []).map(async (pkg) => {
-           const { count } = await supabase.from('booking').select('*', { count: 'exact', head: true }).eq('package_id', pkg.package_id)
-           return { ...pkg, booking_count: count || 0 }
+        
+        const optimizedPkgs = (data || []).map(pkg => ({
+          ...pkg,
+          booking_count: pkg.booking?.[0]?.count || 0
         }))
-        setDashboardData(detailedPkgs)
+
+        setDashboardData(optimizedPkgs)
         setLoadMsg('')
      } catch (err) { setLoadMsg('Error: ' + err.message) }
+  }
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault(); setReviewMsg({ type: '', text: '' });
+    if (!loggedInUser) return;
+    try {
+      // 1. Get Tourist Name
+      const { data: t } = await supabase.from('tourist').select('name').ilike('tourist_id', loggedInUser).single()
+      
+      const payload = {
+        package_id: isReviewing.package_id?.package_id || isReviewing.package_id?.id,
+        tourist_name: t?.name || 'Tourist',
+        comment: reviewForm.comment,
+        rating: reviewForm.rating
+      }
+
+      const { error } = await supabase.from('review').insert([payload])
+      if (error) throw error
+      
+      setReviewMsg({ type: 'success', text: 'Thank you for your feedback!' })
+      setTimeout(() => { setIsReviewing(null); setReviewForm({ rating: 5, comment: '' }); setReviewMsg({ type: '', text: '' }); }, 2000)
+    } catch (err) { setReviewMsg({ type: 'error', text: err.message }) }
+  }
+
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+    try {
+      const { error } = await supabase.from('booking').delete().eq('booking_id', bookingId)
+      if (error) throw error
+      fetchTouristDashboard() // Refresh data
+    } catch (err) { alert('Cancellation failed: ' + err.message) }
   }
 
   useEffect(() => {
@@ -400,17 +443,76 @@ function App() {
                    {loadMsg && <p className="msg success">{loadMsg}</p>}
                    
                    {/* Tourist Dashboard */}
-                   {userRole === 'tourist' && (
-                     <div className="grid-cards">
-                        {dashboardData?.map(b => (
-                          <div key={b.booking_id} className="data-card">
-                             <div className="data-card-title flex-between"><span>{b.package_id?.package_name}</span> <Navigation size={20} className="text-accent" /></div>
-                             <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><MapPin size={14} className="text-muted"/> <span className="data-card-field-label">Destination:</span> <span style={{color:'#fff'}}>{b.package_id?.destination_id?.destination_name || 'N/A'}</span></div>
-                             <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><Calendar size={14} className="text-muted"/> <span className="data-card-field-label">Date:</span> <span style={{color:'#fff'}}>{b.travel_date}</span></div>
-                             <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><DollarSign size={14} className="text-muted"/> <span className="data-card-field-label">Cost:</span> <span style={{color:'#fff'}}>₹{b.package_id?.total_cost}</span></div>
-                             <div className="data-card-field" style={{display:'flex', alignItems:'center', gap:'6px'}}><Home size={14} className="text-muted"/> <span className="data-card-field-label">Duration:</span> <span style={{color:'#fff'}}>{b.package_id?.duration_days} Days</span></div>
-                          </div>
-                        ))}
+                   {userRole === 'tourist' && dashboardData && (
+                     <div className="tourist-dash-container">
+                        {/* Upcoming Section */}
+                        <div className="dash-section-header">
+                           <Clock size={20} className="text-accent" /> <h3>Upcoming Adventures</h3>
+                        </div>
+                        <div className="grid-cards-mb3">
+                           {dashboardData.filter(b => new Date(b.travel_date) >= new Date().setHours(0,0,0,0)).map(b => (
+                            <div key={b.booking_id} className="data-card upcoming-border">
+                               <div className="data-card-title flex-between"><span>{b.package_id?.package_name}</span> <Navigation size={20} className="text-accent" /></div>
+                               <div className="data-card-field-box">
+                                  <div className="data-card-field"><MapPin size={14} className="text-muted"/> <span>{b.package_id?.destination_id?.destination_name || 'N/A'}</span></div>
+                                  <div className="data-card-field"><Calendar size={14} className="text-muted"/> <span>{b.travel_date}</span></div>
+                                  <div className="data-card-field"><DollarSign size={14} className="text-muted"/> <span>₹{b.package_id?.total_cost}</span></div>
+                               </div>
+                               {/* Cancellation logic: 3 days prior */}
+                               {((new Date(b.travel_date) - new Date()) / (1000 * 60 * 60 * 24)) >= 3 && (
+                                 <button className="btn btn-cancel" onClick={() => handleCancelBooking(b.booking_id)}>
+                                    Cancel Booking
+                                 </button>
+                               )}
+                            </div>
+                           ))}
+                           {dashboardData.filter(b => new Date(b.travel_date) >= new Date().setHours(0,0,0,0)).length === 0 && <p className="text-muted-centered">No upcoming trips planned. Ready for a new journey?</p>}
+                        </div>
+
+                        {/* Recent Section */}
+                        <div className="dash-section-header" style={{marginTop:'3rem'}}>
+                           <Sparkles size={20} className="text-accent" /> <h3>Previous Journeys</h3>
+                        </div>
+                        <div className="grid-cards">
+                           {dashboardData.filter(b => new Date(b.travel_date) < new Date().setHours(0,0,0,0)).map(b => (
+                            <div key={b.booking_id} className="data-card previous-style">
+                               <div className="data-card-title">{b.package_id?.package_name}</div>
+                               <div className="data-card-field-box">
+                                 <div className="data-card-field"><MapPin size={14} className="text-muted"/> <span>{b.package_id?.destination_id?.destination_name}</span></div>
+                                 <div className="data-card-field"><Calendar size={14} className="text-muted"/> <span>{b.travel_date}</span></div>
+                               </div>
+                               <button className="btn btn-review-add" onClick={() => setIsReviewing(b)}>
+                                  <MessageSquare size={16} /> Add Review
+                               </button>
+                            </div>
+                           ))}
+                        </div>
+                     </div>
+                   )}
+
+                   {/* Review Modal */}
+                   {isReviewing && (
+                     <div className="modal-overlay">
+                        <div className="modal-content review-modal tab-content-reveal">
+                           <div className="flex-between"><h3>How was your trip?</h3><button className="btn-close" onClick={() => setIsReviewing(null)}>&times;</button></div>
+                           <p className="text-muted-sm mb-2">Sharing your experience helps other travelers discover God's Own Country.</p>
+                           {reviewMsg.text && <div className={`msg ${reviewMsg.type}`}>{reviewMsg.text}</div>}
+                           <form onSubmit={handleReviewSubmit}>
+                              <div className="form-group text-center">
+                                 <label>Rating</label>
+                                 <div className="star-rating-select">
+                                    {[1,2,3,4,5].map(s => (
+                                      <Star key={s} size={28} fill={s <= reviewForm.rating ? "var(--accent)" : "none"} color={s <= reviewForm.rating ? "var(--accent)" : "#94A3B8"} onClick={() => setReviewForm({...reviewForm, rating: s})} style={{cursor:'pointer'}} />
+                                    ))}
+                                 </div>
+                              </div>
+                              <div className="form-group">
+                                 <label>Comment</label>
+                                 <textarea className="form-input text-area" placeholder="Tell us about the sights, the guide, and your overall experience..." value={reviewForm.comment} onChange={e => setReviewForm({...reviewForm, comment: e.target.value})} required rows={4}></textarea>
+                              </div>
+                              <button type="submit" className="btn btn-full">Post Feedback</button>
+                           </form>
+                        </div>
                      </div>
                    )}
                    
